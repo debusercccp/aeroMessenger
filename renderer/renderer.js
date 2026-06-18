@@ -104,6 +104,26 @@ function renderChats() {
   }
 }
 
+// ---- helpers ----
+const URL_RE = /https?:\/\/[^\s<>"']+/g;
+
+function linkify(str) {
+  const frag = document.createDocumentFragment();
+  let last = 0;
+  for (const m of (str || '').matchAll(URL_RE)) {
+    if (m.index > last) frag.append(document.createTextNode(str.slice(last, m.index)));
+    const a = document.createElement('a');
+    a.href = m[0];
+    a.textContent = m[0];
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    frag.append(a);
+    last = m.index + m[0].length;
+  }
+  if (last < (str || '').length) frag.append(document.createTextNode(str.slice(last)));
+  return frag;
+}
+
 // ---- conversation ----
 function renderBubble(m) {
   const div = document.createElement('div');
@@ -112,7 +132,8 @@ function renderBubble(m) {
 
   const text = document.createElement('span');
   text.className = 'bubble-text';
-  text.textContent = m.body || (m.type && m.type !== 'chat' ? `[${m.type}]` : '');
+  const rawText = m.body || (m.type && m.type !== 'chat' ? `[${m.type}]` : '');
+  text.append(linkify(rawText));
 
   const time = document.createElement('span');
   time.className = 'time';
@@ -135,6 +156,13 @@ function renderBubble(m) {
   delBtn.textContent = '🗑';
   delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteMessage(div, m); });
   actions.append(delBtn);
+
+  if (!m.fromMe && activeChatIsGroup && (m.notifyName || m.author)) {
+    const author = document.createElement('span');
+    author.className = 'bubble-author';
+    author.textContent = m.notifyName || m.author.split('@')[0];
+    div.append(author);
+  }
 
   div.append(actions, text, time);
   return div;
@@ -209,6 +237,8 @@ async function openChat(chatId, name, isGroup) {
   activeChatId = chatId;
   activeChatName = name;
   activeChatIsGroup = isGroup;
+  const entry = allChats.find((c) => c.id === chatId);
+  if (entry) entry.unread = 0;
   renderChats();
 
   convName.textContent = name;

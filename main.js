@@ -168,6 +168,13 @@ async function relayMessage(msg, fromMe) {
   if (!isTextMessage(msg)) return; // skip media in the conversation view
   try {
     const chat = await msg.getChat();
+    let notifyName = msg.notifyName || '';
+    if (!notifyName && msg.author && !msg.fromMe) {
+      try {
+        const c = await waClient.getContactById(msg.author);
+        notifyName = c.pushname || c.name || '';
+      } catch (_) {}
+    }
     send('wa:message', {
       chatId: chat.id._serialized,
       id: msg.id._serialized,
@@ -175,7 +182,8 @@ async function relayMessage(msg, fromMe) {
       fromMe: fromMe || msg.fromMe,
       timestamp: msg.timestamp,
       type: msg.type,
-      author: msg.author || msg.from
+      author: msg.author || msg.from,
+      notifyName
     });
   } catch (_) { /* ignore */ }
 }
@@ -207,19 +215,32 @@ ipcMain.handle('wa:getMessages', async (_evt, chatId) => {
   if (!waClient) return [];
   try {
     const chat = await waClient.getChatById(chatId);
+    await chat.sendSeen().catch(() => {});
     // Fetch extra so we still have ~40 text messages after dropping media.
     const messages = await chat.fetchMessages({ limit: 80 });
-    return messages
-      .filter(isTextMessage)
-      .slice(-40)
-      .map((m) => ({
-        id: m.id._serialized,
-        body: m.body,
-        fromMe: m.fromMe,
-        timestamp: m.timestamp,
-        type: m.type,
-        author: m.author || m.from
-      }));
+    const filtered = messages.filter(isTextMessage).slice(-40);
+
+    // notifyName is not populated on history messages — batch-lookup contacts.
+    const authorIds = [...new Set(
+      filtered.filter((m) => !m.fromMe && m.author).map((m) => m.author)
+    )];
+    const nameMap = {};
+    await Promise.all(authorIds.map(async (id) => {
+      try {
+        const c = await waClient.getContactById(id);
+        nameMap[id] = c.pushname || c.name || '';
+      } catch (_) {}
+    }));
+
+    return filtered.map((m) => ({
+      id: m.id._serialized,
+      body: m.body,
+      fromMe: m.fromMe,
+      timestamp: m.timestamp,
+      type: m.type,
+      author: m.author || m.from,
+      notifyName: nameMap[m.author] || m.notifyName || ''
+    }));
   } catch (err) {
     return { error: err.message };
   }

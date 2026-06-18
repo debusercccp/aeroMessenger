@@ -305,6 +305,17 @@ body {
   color: #16400a; border-bottom-right-radius: 5px;
 }
 
+/* group sender name */
+.bubble-author {
+  display: block; font-size: 11px; font-weight: 700;
+  margin-bottom: 2px; opacity: 0.75; letter-spacing: 0.01em;
+  color: var(--aqua-2);
+}
+
+/* clickable links inside bubbles */
+.bubble-text a { color: var(--aqua-2); text-decoration: underline; word-break: break-all; }
+.bubble.out .bubble-text a { color: #1a5c0a; }
+
 /* per-message hover actions (edit / delete) */
 .bubble-actions {
   position: absolute; top: -12px; display: none; gap: 3px;
