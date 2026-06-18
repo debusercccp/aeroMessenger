@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="orb" cx="38%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#d9ffe0"/>
+      <stop offset="38%" stop-color="#9ee84b"/>
+      <stop offset="100%" stop-color="#2a8f12"/>
+    </radialGradient>
+    <linearGradient id="aqua" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bfefff"/>
+      <stop offset="100%" stop-color="#1f9fe0"/>
+    </linearGradient>
+    <radialGradient id="gloss" cx="50%" cy="0%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0a3d62" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- aqua rounded background -->
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#aqua)"/>
+  <rect x="8" y="8" width="240" height="120" rx="52" fill="#ffffff" opacity="0.18"/>
+
+  <!-- glossy green orb -->
+  <g filter="url(#soft)">
+    <circle cx="128" cy="130" r="78" fill="url(#orb)"/>
+    <circle cx="128" cy="130" r="78" fill="url(#gloss)"/>
+    <ellipse cx="104" cy="92" rx="40" ry="22" fill="#ffffff" opacity="0.7"/>
+  </g>
+
+  <!-- chat bubble -->
+  <g>
+    <path d="M92 112 h72 a16 16 0 0 1 16 16 v34 a16 16 0 0 1 -16 16 h-30 l-20 18 v-18 h-22 a16 16 0 0 1 -16 -16 v-34 a16 16 0 0 1 16 -16 z"
+          fill="#ffffff" opacity="0.92"/>
+    <circle cx="110" cy="145" r="6" fill="#2a8f12"/>
+    <circle cx="132" cy="145" r="6" fill="#2a8f12"/>
+    <circle cx="154" cy="145" r="6" fill="#2a8f12"/>
+  </g>
+</svg>

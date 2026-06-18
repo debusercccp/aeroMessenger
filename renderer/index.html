@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';" />
+  <title>Aero Messenger</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Decorative Frutiger Aero bubbles -->
+  <div class="bubbles" aria-hidden="true">
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="app glass">
+    <!-- Title bar -->
+    <header class="titlebar">
+      <div class="brand">
+        <span class="logo-orb"></span>
+        <span class="brand-text">Aero<strong>Messenger</strong></span>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Starting…</span>
+      </div>
+    </header>
+
+    <!-- LOGIN / QR overlay -->
+    <section class="login" id="loginView">
+      <div class="login-card glass-deep">
+        <h1>Link to WhatsApp</h1>
+        <p class="muted">Open WhatsApp on your phone → <em>Linked devices</em> → <em>Link a device</em>, then scan below.</p>
+        <div class="qr-frame">
+          <img id="qrImg" alt="QR code" />
+          <div class="qr-spinner" id="qrSpinner"></div>
+        </div>
+        <p class="login-status" id="loginStatus">Starting the engine…</p>
+      </div>
+    </section>
+
+    <!-- MAIN messenger -->
+    <main class="messenger hidden" id="messengerView">
+      <aside class="sidebar glass-panel">
+        <div class="sidebar-head">
+          <div class="me">
+            <span class="avatar" id="meAvatar">Y</span>
+            <span class="me-name" id="meName">You</span>
+          </div>
+          <div class="head-actions">
+            <button class="aero-btn small" id="refreshBtn" title="Refresh chats">↻</button>
+            <button class="aero-btn small" id="logoutBtn" title="Unlink device">Logout</button>
+          </div>
+        </div>
+        <div class="search">
+          <input type="text" id="chatSearch" placeholder="Search chats…" />
+        </div>
+        <ul class="chat-list" id="chatList"></ul>
+      </aside>
+
+      <section class="conversation">
+        <div class="conv-head glass-panel" id="convHead">
+          <span class="conv-avatar" id="convAvatar"></span>
+          <div class="conv-meta">
+            <span class="conv-name" id="convName">Select a chat</span>
+            <span class="conv-sub" id="convSub">Frutiger Aero · WhatsApp</span>
+          </div>
+        </div>
+
+        <div class="messages" id="messages">
+          <div class="empty-state" id="emptyState">
+            <div class="empty-orb"></div>
+            <p>Pick a conversation from the left to start chatting.</p>
+          </div>
+        </div>
+
+        <form class="composer glass-panel" id="composer">
+          <input type="text" id="msgInput" placeholder="Type a message…" autocomplete="off" disabled />
+          <button type="submit" class="aero-btn send" id="sendBtn" disabled>Send</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
