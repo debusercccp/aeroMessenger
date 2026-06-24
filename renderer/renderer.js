@@ -296,6 +296,21 @@ refreshBtn.addEventListener('click', async () => {
 
 chatSearch.addEventListener('input', renderChats);
 
+// ---- theme switching ----
+function applyTheme(name) {
+  document.documentElement.dataset.theme = name;
+  localStorage.setItem('aero-theme', name);
+  document.querySelectorAll('.theme-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.theme === name);
+  });
+}
+
+document.querySelectorAll('.theme-btn').forEach((btn) => {
+  btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+});
+
+applyTheme(localStorage.getItem('aero-theme') || 'aero');
+
 // ---- events from main ----
 window.wa.onStatus((d) => {
   setStatus(d.state, d.text);
