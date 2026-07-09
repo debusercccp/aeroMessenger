@@ -17,6 +17,11 @@
             rgba(255,255,255,0.35) 48%,
             rgba(255,255,255,0.05) 49%,
             rgba(255,255,255,0.18) 100%);
+  /* quoted-reply block: accent per bubble side, plus its backdrop */
+  --quote-in: var(--aqua-2);
+  --quote-out: #2f7d12;
+  --quote-bg: rgba(255,255,255,0.45);
+  --quote-bg-hover: rgba(255,255,255,0.7);
 }
 
 * { box-sizing: border-box; }
@@ -293,7 +298,15 @@ body {
   word-wrap: break-word; box-shadow: 0 2px 6px rgba(10,61,98,0.18);
   border: 1px solid rgba(255,255,255,0.6);
 }
-.bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 3px; text-align: right; }
+/* time + star + delivery ticks, on one right-aligned row under the text */
+.bubble .meta {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 4px; margin-top: 3px; font-size: 10px; line-height: 1;
+}
+.bubble .time { opacity: 0.6; }
+.bubble .starred { color: #f5a623; font-size: 11px; }
+.bubble .edited-tag { opacity: 0.55; font-style: italic; margin-right: auto; }
+.bubble.revoked .bubble-text { font-style: italic; opacity: 0.6; }
 .bubble.in {
   align-self: flex-start;
   background: linear-gradient(to bottom, #ffffff, #eaf7ff);
@@ -336,6 +349,102 @@ body {
 .msg-act:active { transform: scale(0.9); }
 .msg-act:disabled { opacity: 0.5; cursor: default; }
 
+/* ---------- delivery ticks ---------- */
+/* Single ✓ = sent, double ✓✓ = delivered, blue ✓✓ = read. */
+.tick {
+  font-size: 11px; line-height: 1; letter-spacing: -2px;
+  opacity: 0.65; white-space: nowrap;
+}
+.tick.pending { letter-spacing: 0; font-size: 9px; opacity: 0.5; }
+.tick.read { color: #34b7f1; opacity: 1; text-shadow: 0 0 4px rgba(52,183,241,0.5); }
+.tick.error { color: #ff5b5b; opacity: 1; letter-spacing: 0; }
+.ci-last .tick { margin-right: 2px; }
+
+/* ---------- quoted (reply) block inside a bubble ---------- */
+/* Driven by variables so themes can restyle it without fighting the
+   `.bubble.out .quoted` specificity. */
+.quoted {
+  display: flex; flex-direction: column; gap: 1px; cursor: pointer;
+  border-left: 3px solid var(--quote-in);
+  background: var(--quote-bg);
+  border-radius: 6px; padding: 4px 8px; margin-bottom: 5px;
+}
+.bubble.out .quoted { border-left-color: var(--quote-out); }
+.quoted:hover { background: var(--quote-bg-hover); }
+.quoted-author { font-size: 11px; font-weight: 700; color: var(--quote-in); }
+.bubble.out .quoted-author { color: var(--quote-out); }
+.quoted-body {
+  font-size: 12px; opacity: 0.75;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;
+}
+
+/* Flash when you jump to a quoted message. */
+.bubble.highlight { animation: flash 1.2s ease-out; }
+@keyframes flash {
+  0%, 40% { box-shadow: 0 0 0 3px var(--aqua-1), 0 2px 6px rgba(10,61,98,0.18); }
+  100%    { box-shadow: 0 2px 6px rgba(10,61,98,0.18); }
+}
+
+/* ---------- reactions ---------- */
+.reactions {
+  display: flex; flex-wrap: wrap; gap: 3px;
+  margin-top: 4px; margin-bottom: -4px;
+}
+.reaction-chip {
+  border: 1px solid rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.8);
+  border-radius: 999px; padding: 1px 6px; font-size: 11px; line-height: 1.5;
+  cursor: pointer; box-shadow: 0 1px 3px rgba(10,61,98,0.2);
+  transition: transform 0.08s;
+}
+.reaction-chip:hover { transform: scale(1.08); }
+.reaction-chip.mine { border-color: var(--aqua-2); background: rgba(111,211,255,0.5); }
+
+.reaction-picker {
+  position: absolute; top: -40px; z-index: 30;
+  display: flex; gap: 2px; padding: 4px 6px;
+  background: rgba(255,255,255,0.95);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 999px; box-shadow: 0 4px 14px rgba(10,61,98,0.35);
+}
+.bubble.in .reaction-picker { left: 0; }
+.bubble.out .reaction-picker { right: 0; }
+.reaction-picker button {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 17px; line-height: 1; padding: 2px; border-radius: 50%;
+  transition: transform 0.1s;
+}
+.reaction-picker button:hover { transform: scale(1.35); }
+
+/* ---------- date separators ---------- */
+.day-sep {
+  align-self: center; margin: 6px 0;
+  padding: 3px 12px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: var(--ink);
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 1px 4px rgba(10,61,98,0.15);
+}
+
+/* ---------- chat list flags (pinned / muted) ---------- */
+.ci-name-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ci-name-row .ci-name { min-width: 0; }
+.ci-flag { font-size: 10px; opacity: 0.7; flex: none; }
+
+/* ---------- chat context menu ---------- */
+.chat-menu {
+  position: fixed; z-index: 100; min-width: 190px;
+  padding: 5px; border-radius: 12px;
+  box-shadow: 0 8px 26px rgba(10,61,98,0.4);
+  display: flex; flex-direction: column;
+}
+.menu-item {
+  border: none; background: transparent; cursor: pointer;
+  text-align: left; padding: 8px 10px; border-radius: 8px;
+  font-size: 13px; color: var(--ink); font-family: inherit;
+}
+.menu-item:hover { background: rgba(111,211,255,0.45); }
+
 /* inline edit box */
 .edit-box { display: flex; gap: 5px; align-items: center; }
 .edit-box input {
@@ -344,12 +453,43 @@ body {
   outline: none; color: var(--ink);
 }
 
+/* ---------- reply bar above the composer ---------- */
+.composer-wrap { display: flex; flex-direction: column; gap: 6px; }
+.reply-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 14px;
+  border-left: 4px solid var(--quote-in);
+}
+.reply-meta { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.reply-author { font-size: 11.5px; font-weight: 700; color: var(--quote-in); }
+.reply-text {
+  font-size: 12px; opacity: 0.75;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* composer */
 .composer {
   display: flex; gap: 10px; padding: 10px; border-radius: 16px;
   box-shadow: 0 6px 18px rgba(10,61,98,0.25);
+  position: relative;
 }
 .composer input { flex: 1; }
+.emoji-btn { font-size: 16px; line-height: 1; padding: 6px 11px; }
+
+/* ---------- emoji panel ---------- */
+.emoji-panel {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 50;
+  width: 296px; max-height: 220px; overflow-y: auto;
+  padding: 8px; border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(10,61,98,0.4);
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+}
+.emoji-panel button {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 19px; line-height: 1; padding: 4px; border-radius: 8px;
+  transition: transform 0.08s, background 0.12s;
+}
+.emoji-panel button:hover { background: rgba(111,211,255,0.4); transform: scale(1.2); }
 
 /* ---------- glossy Aero buttons ---------- */
 .aero-btn {
@@ -1147,3 +1287,90 @@ body {
   background: rgba(12,12,12,0.96); border-color: #00ffcc;
   color: #e8e8e8; font-family: 'Courier New', monospace;
 }
+
+/* ============================================================
+   Theme overrides for the WhatsApp-style additions
+   (ticks, quoted replies, reactions, date chips, menus, emoji)
+   ============================================================ */
+
+/* ---------- 8-bit ---------- */
+[data-theme="8bit"] {
+  --quote-in: #cd7aa4;
+  --quote-out: #5a7a3a;
+  --quote-bg: #fffdf6;
+  --quote-bg-hover: #f6efe0;
+}
+[data-theme="8bit"] .quoted {
+  border-radius: 0; box-shadow: 2px 2px 0 var(--pixel-outline);
+}
+[data-theme="8bit"] .reaction-chip,
+[data-theme="8bit"] .day-sep {
+  background: var(--pixel-cream); border: 2px solid var(--pixel-outline);
+  border-radius: 0; box-shadow: 2px 2px 0 var(--pixel-outline);
+}
+[data-theme="8bit"] .reaction-chip.mine { background: #f0c4d8; }
+[data-theme="8bit"] .reaction-picker,
+[data-theme="8bit"] .chat-menu,
+[data-theme="8bit"] .emoji-panel {
+  background: var(--pixel-cream); border: 2px solid var(--pixel-outline);
+  border-radius: 0; box-shadow: 3px 3px 0 var(--pixel-outline);
+}
+[data-theme="8bit"] .menu-item { color: #3b3550; }
+[data-theme="8bit"] .menu-item:hover,
+[data-theme="8bit"] .emoji-panel button:hover { background: #f0c4d8; border-radius: 0; }
+[data-theme="8bit"] .reply-bar { border-radius: 0; }
+[data-theme="8bit"] .tick.read { color: #7a9a56; text-shadow: none; }
+
+/* ---------- Vaporwave ---------- */
+[data-theme="vaporwave"] {
+  --quote-in: #ff71ce;
+  --quote-out: #05ffa1;
+  --quote-bg: rgba(185,103,255,0.16);
+  --quote-bg-hover: rgba(185,103,255,0.3);
+}
+[data-theme="vaporwave"] .reaction-chip {
+  background: rgba(30,0,60,0.92); border-color: rgba(255,113,206,0.5); color: #fffb96;
+}
+[data-theme="vaporwave"] .reaction-chip.mine {
+  background: rgba(255,113,206,0.3); border-color: #ff71ce;
+}
+[data-theme="vaporwave"] .day-sep,
+[data-theme="vaporwave"] .reaction-picker,
+[data-theme="vaporwave"] .chat-menu,
+[data-theme="vaporwave"] .emoji-panel {
+  background: rgba(30,0,60,0.95); border: 1px solid rgba(255,113,206,0.5);
+  color: #fffb96; box-shadow: 0 0 18px rgba(255,113,206,0.25);
+}
+[data-theme="vaporwave"] .menu-item { color: #fffb96; }
+[data-theme="vaporwave"] .menu-item:hover,
+[data-theme="vaporwave"] .emoji-panel button:hover { background: rgba(255,113,206,0.22); }
+[data-theme="vaporwave"] .tick.read { color: #05ffa1; text-shadow: 0 0 6px rgba(5,255,161,0.6); }
+[data-theme="vaporwave"] .bubble .starred { color: #fffb96; }
+
+/* ---------- Glitch ---------- */
+[data-theme="glitch"] {
+  --quote-in: #00ffcc;
+  --quote-out: #ff0040;
+  --quote-bg: rgba(0,255,204,0.08);
+  --quote-bg-hover: rgba(0,255,204,0.16);
+}
+[data-theme="glitch"] .quoted { border-radius: 0; }
+[data-theme="glitch"] .reaction-chip {
+  background: rgba(15,15,15,0.96); border-color: rgba(0,255,204,0.4);
+  color: #e8e8e8; border-radius: 0; box-shadow: none;
+}
+[data-theme="glitch"] .reaction-chip.mine { border-color: #ff0040; background: rgba(28,5,10,0.96); }
+[data-theme="glitch"] .day-sep,
+[data-theme="glitch"] .reaction-picker,
+[data-theme="glitch"] .chat-menu,
+[data-theme="glitch"] .emoji-panel {
+  background: rgba(12,12,12,0.97); border: 1px solid rgba(0,255,204,0.4);
+  color: #e8e8e8; border-radius: 0; box-shadow: 0 0 14px rgba(0,255,204,0.15);
+}
+[data-theme="glitch"] .menu-item {
+  color: #e8e8e8; font-family: 'Courier New', monospace; border-radius: 0;
+}
+[data-theme="glitch"] .menu-item:hover,
+[data-theme="glitch"] .emoji-panel button:hover { background: rgba(0,255,204,0.15); border-radius: 0; }
+[data-theme="glitch"] .tick.read { color: #00ffcc; text-shadow: 0 0 6px rgba(0,255,204,0.6); }
+[data-theme="glitch"] .bubble .starred { color: #00ffcc; }

@@ -142,6 +142,32 @@ function startWhatsApp() {
     }
   });
 
+  // Delivery receipts: 1 = sent to server, 2 = delivered to device, 3 = read.
+  // This is what drives the single/double/blue ticks in the UI.
+  waClient.on('message_ack', (msg, ack) => {
+    send('wa:ack', { id: msg.id._serialized, ack });
+  });
+
+  // Someone reacted (or removed a reaction). We re-read the whole reaction
+  // list of the parent message so counts stay authoritative.
+  waClient.on('message_reaction', async (reaction) => {
+    try {
+      const parentId = msgKeyToId(reaction.msgId);
+      if (!parentId) return;
+      const parent = await waClient.getMessageById(parentId);
+      if (!parent) return; // can't verify: leave the existing chips alone
+      send('wa:reaction', { id: parentId, reactions: await collectReactions(parent) });
+    } catch (_) { /* ignore */ }
+  });
+
+  waClient.on('message_revoke_everyone', (after) => {
+    send('wa:revoke', { id: after.id._serialized });
+  });
+
+  waClient.on('message_edit', (msg, newBody) => {
+    send('wa:edited', { id: msg.id._serialized, body: newBody });
+  });
+
   waClient.initialize().catch((err) => {
     send('wa:status', { state: 'error', text: 'Init error: ' + err.message });
   });
@@ -164,6 +190,71 @@ function mediaLabel(type) {
   return labels[type] || '📎 Attachment';
 }
 
+// The reaction event's parent key is JSON-serialized out of the browser page,
+// where `_serialized` is a getter and so may not survive the crossing. Fall
+// back to WhatsApp's own key format: fromMe_remote_id[_participant].
+function msgKeyToId(key) {
+  if (!key) return null;
+  if (typeof key === 'string') return key;
+  if (key._serialized) return key._serialized;
+  const jid = (v) => (typeof v === 'string' ? v : (v && v._serialized) || '');
+  const remote = jid(key.remote);
+  if (!remote || !key.id) return null;
+  const parts = [key.fromMe ? 'true' : 'false', remote, key.id];
+  const participant = jid(key.participant);
+  if (participant) parts.push(participant);
+  return parts.join('_');
+}
+
+// Collapse WhatsApp's per-sender reaction records into one chip per emoji.
+async function collectReactions(msg) {
+  if (!msg.hasReaction) return [];
+  try {
+    const groups = await msg.getReactions();
+    if (!groups) return [];
+    return groups.map((g) => ({
+      emoji: g.aggregateEmoji || g.id,
+      count: (g.senders || []).length,
+      mine: !!g.hasReactionByMe
+    }));
+  } catch (_) {
+    return [];
+  }
+}
+
+// The one shape every message crosses the IPC bridge in. `notifyName` may be
+// pre-resolved by the caller (history loads batch the contact lookups).
+async function serializeMessage(msg, notifyName) {
+  const out = {
+    id: msg.id._serialized,
+    body: msg.body,
+    fromMe: msg.fromMe,
+    timestamp: msg.timestamp,
+    type: msg.type,
+    author: msg.author || msg.from,
+    notifyName: notifyName || msg.notifyName || '',
+    ack: typeof msg.ack === 'number' ? msg.ack : 0,
+    starred: !!msg.isStarred,
+    reactions: await collectReactions(msg)
+  };
+
+  if (msg.hasQuotedMsg) {
+    try {
+      const q = await msg.getQuotedMessage();
+      if (q) {
+        out.quoted = {
+          id: q.id._serialized,
+          body: isTextMessage(q) ? q.body : mediaLabel(q.type),
+          fromMe: q.fromMe,
+          author: q.notifyName || (q.author || q.from || '').split('@')[0]
+        };
+      }
+    } catch (_) { /* quoted message may be out of the local cache */ }
+  }
+
+  return out;
+}
+
 async function relayMessage(msg, fromMe) {
   if (!isTextMessage(msg)) return; // skip media in the conversation view
   try {
@@ -175,16 +266,11 @@ async function relayMessage(msg, fromMe) {
         notifyName = c.pushname || c.name || '';
       } catch (_) {}
     }
-    send('wa:message', {
-      chatId: chat.id._serialized,
-      id: msg.id._serialized,
-      body: msg.body,
-      fromMe: fromMe || msg.fromMe,
-      timestamp: msg.timestamp,
-      type: msg.type,
-      author: msg.author || msg.from,
-      notifyName
-    });
+    const payload = await serializeMessage(msg, notifyName);
+    payload.chatId = chat.id._serialized;
+    payload.chatName = chat.name || chat.id.user;
+    payload.fromMe = fromMe || msg.fromMe;
+    send('wa:message', payload);
   } catch (_) { /* ignore */ }
 }
 
@@ -198,11 +284,18 @@ async function pushChats() {
       isGroup: c.isGroup,
       unread: c.unreadCount || 0,
       timestamp: c.timestamp || 0,
+      pinned: !!c.pinned,
+      archived: !!c.archived,
+      muted: !!c.isMuted,
+      // Ack of the last message, but only meaningful when we sent it — that's
+      // what lets the chat list show ticks next to the preview.
+      lastAck: c.lastMessage && c.lastMessage.fromMe ? (c.lastMessage.ack || 0) : null,
       lastMessage: c.lastMessage
         ? (isTextMessage(c.lastMessage) ? c.lastMessage.body : mediaLabel(c.lastMessage.type))
         : ''
     }));
-    list.sort((a, b) => b.timestamp - a.timestamp);
+    // Pinned chats float to the top, then most-recent-first, exactly like WhatsApp.
+    list.sort((a, b) => (b.pinned - a.pinned) || (b.timestamp - a.timestamp));
     send('wa:chats', { chats: list });
   } catch (err) {
     send('wa:status', { state: 'error', text: 'Could not load chats: ' + err.message });
@@ -232,15 +325,9 @@ ipcMain.handle('wa:getMessages', async (_evt, chatId) => {
       } catch (_) {}
     }));
 
-    return filtered.map((m) => ({
-      id: m.id._serialized,
-      body: m.body,
-      fromMe: m.fromMe,
-      timestamp: m.timestamp,
-      type: m.type,
-      author: m.author || m.from,
-      notifyName: nameMap[m.author] || m.notifyName || ''
-    }));
+    return await Promise.all(
+      filtered.map((m) => serializeMessage(m, nameMap[m.author]))
+    );
   } catch (err) {
     return { error: err.message };
   }
@@ -250,6 +337,80 @@ ipcMain.handle('wa:sendMessage', async (_evt, { chatId, text }) => {
   if (!waClient) return { error: 'Not connected' };
   try {
     await waClient.sendMessage(chatId, text);
+    return { ok: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// Send as a reply to `quotedId`. WhatsApp threads it under the quoted bubble.
+ipcMain.handle('wa:replyMessage', async (_evt, { chatId, text, quotedId }) => {
+  if (!waClient) return { error: 'Not connected' };
+  try {
+    const quoted = await waClient.getMessageById(quotedId);
+    if (!quoted) return { error: 'Original message not found' };
+    await quoted.reply(text, chatId);
+    return { ok: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// Passing an empty string removes our reaction — that's the WhatsApp protocol.
+ipcMain.handle('wa:reactMessage', async (_evt, { messageId, emoji }) => {
+  if (!waClient) return { error: 'Not connected' };
+  try {
+    const msg = await waClient.getMessageById(messageId);
+    if (!msg) return { error: 'Message not found' };
+    await msg.react(emoji || '');
+    return { ok: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('wa:starMessage', async (_evt, { messageId, starred }) => {
+  if (!waClient) return { error: 'Not connected' };
+  try {
+    const msg = await waClient.getMessageById(messageId);
+    if (!msg) return { error: 'Message not found' };
+    if (starred) await msg.star(); else await msg.unstar();
+    return { ok: true, starred: !!starred };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// Broadcast "typing…" presence to the other side, like the real client.
+ipcMain.handle('wa:setTyping', async (_evt, { chatId, typing }) => {
+  if (!waClient) return { error: 'Not connected' };
+  try {
+    const chat = await waClient.getChatById(chatId);
+    if (typing) await chat.sendStateTyping(); else await chat.clearState();
+    return { ok: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('wa:chatAction', async (_evt, { chatId, action }) => {
+  if (!waClient) return { error: 'Not connected' };
+  try {
+    const chat = await waClient.getChatById(chatId);
+    switch (action) {
+      case 'pin': await chat.pin(); break;
+      case 'unpin': await chat.unpin(); break;
+      case 'archive': await chat.archive(); break;
+      case 'unarchive': await chat.unarchive(); break;
+      // WhatsApp treats a far-future expiry as "muted until I say otherwise".
+      case 'mute': await chat.mute(new Date(Date.now() + 365 * 24 * 3600 * 1000)); break;
+      case 'unmute': await chat.unmute(); break;
+      case 'markUnread': await chat.markUnread(); break;
+      case 'markRead': await chat.sendSeen(); break;
+      case 'clear': await chat.clearMessages(); break;
+      default: return { error: 'Unknown action: ' + action };
+    }
+    await pushChats();
     return { ok: true };
   } catch (err) {
     return { error: err.message };

@@ -81,13 +81,29 @@
           </div>
         </div>
 
-        <form class="composer glass-panel" id="composer">
-          <input type="text" id="msgInput" placeholder="Type a message…" autocomplete="off" disabled />
-          <button type="submit" class="aero-btn send" id="sendBtn" disabled>Send</button>
-        </form>
+        <div class="composer-wrap">
+          <!-- Reply preview, shown while composing a quoted reply -->
+          <div class="reply-bar glass-panel hidden" id="replyBar">
+            <div class="reply-meta">
+              <span class="reply-author" id="replyAuthor"></span>
+              <span class="reply-text" id="replyText"></span>
+            </div>
+            <button type="button" class="msg-act" id="replyCancel" title="Cancel reply">✕</button>
+          </div>
+
+          <form class="composer glass-panel" id="composer">
+            <button type="button" class="aero-btn small emoji-btn" id="emojiBtn" title="Emoji">😊</button>
+            <div class="emoji-panel glass-deep hidden" id="emojiPanel"></div>
+            <input type="text" id="msgInput" placeholder="Type a message…" autocomplete="off" disabled />
+            <button type="submit" class="aero-btn send" id="sendBtn" disabled>Send</button>
+          </form>
+        </div>
       </section>
     </main>
   </div>
+
+  <!-- Right-click menu for chat list entries -->
+  <div class="chat-menu glass-deep hidden" id="chatMenu"></div>
 
   <script src="renderer.js"></script>
 </body>
