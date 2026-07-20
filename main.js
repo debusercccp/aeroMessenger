@@ -169,7 +169,7 @@ function startWhatsApp() {
   });
 
   waClient.initialize().catch((err) => {
-    send('wa:status', { state: 'error', text: 'Init error: ' + err.message });
+    console.error('[wa] FULL INIT ERROR:', err); send('wa:status', { state: 'error', text: 'Init error: ' + (err && err.message) });
   });
 }
 

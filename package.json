@@ -12,9 +12,9 @@
   "license": "MIT",
   "dependencies": {
     "qrcode": "^1.5.3",
-    "whatsapp-web.js": "^1.23.0"
+    "whatsapp-web.js": "github:wwebjs/whatsapp-web.js"
   },
   "devDependencies": {
-    "electron": "^30.0.0"
+    "electron": "^43.1.1"
   }
 }
